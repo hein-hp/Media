@@ -19,6 +19,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var icon []byte
+
 func main() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -46,6 +49,11 @@ func main() {
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
 				HideTitle: true,
+			},
+			About: &mac.AboutInfo{
+				Title:   "Media",
+				Message: "一个媒体工具",
+				Icon:    icon,
 			},
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,

@@ -37,5 +37,29 @@ func Create(app *app.App) *menu.Menu {
 		}
 	})
 	fileMenu.AddSeparator()
+	fileMenu.AddText("关闭文件夹", &keys.Accelerator{Key: "o", Modifiers: []keys.Modifier{keys.ShiftKey, keys.CmdOrCtrlKey}},
+		func(_ *menu.CallbackData) {
+			app.MediaHandler.SendMediaFilesClose()
+		})
+
+	operMenu := appMenu.AddSubmenu("操作")
+	operMenu.AddText("预览媒体文件", &keys.Accelerator{},
+		func(_ *menu.CallbackData) {
+			filepath, err := wailsruntime.OpenDirectoryDialog(app.Context(), wailsruntime.OpenDialogOptions{})
+			if err != nil {
+				logger.L().Error("打开目录对话框失败", zap.Error(err))
+				return
+			}
+			if filepath == "" {
+				logger.L().Debug("用户取消选择目录")
+				return
+			}
+			app.MediaHandler.SetSelectedDir(filepath)
+			mediaInfos := app.MediaHandler.GetMediaFiles()
+			if len(mediaInfos) != 0 {
+				app.MediaHandler.SendMediaFiles(mediaInfos)
+			}
+		})
+
 	return appMenu
 }

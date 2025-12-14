@@ -66,6 +66,14 @@ func (mh *MediaHandler) SetSelectedDir(dir string) {
 	logger.L().Info("目录已选择", zap.String("dir", dir))
 }
 
+// CloseSelectedDir clears the selected directory
+func (mh *MediaHandler) CloseSelectedDir() {
+	mh.mux.Lock()
+	defer mh.mux.Unlock()
+	mh.dir = ""
+	logger.L().Info("目录已清理")
+}
+
 // GetMediaFiles scans the given directory and returns a list of media file paths
 func (mh *MediaHandler) GetMediaFiles() []MediaInfo {
 	var medias []MediaInfo
@@ -141,6 +149,13 @@ func (mh *MediaHandler) SendMediaFiles(mediaInfos []MediaInfo) {
 	logger.L().Debug("已发送媒体列表到前端", zap.Int("count", len(mediaInfos)))
 }
 
+// SendMediaFilesClose sends a media close event to the frontend
+func (mh *MediaHandler) SendMediaFilesClose() {
+	mh.CloseSelectedDir()
+	runtime.EventsEmit(mh.ctx, "media-close")
+	logger.L().Debug("已发送关闭文件事件到前端")
+}
+
 // detectMediaType returns the MIME type of the given file
 func detectMediaType(filepath string) (string, error) {
 	file, err := os.Open(filepath)
@@ -158,4 +173,3 @@ func detectMediaType(filepath string) (string, error) {
 	contentType := http.DetectContentType(buffer[:n])
 	return contentType, nil
 }
-

@@ -4,14 +4,14 @@
                    bg-white/80 backdrop-blur-md border-b border-gray-100"
             style="--wails-draggable: drag">
       <h1 class="text-sm font-medium text-gray-500 select-none">
-        {{ mediaList.length > 0 ? `${mediaList.length} 个媒体文件` : 'Media' }}
+        {{ mediaList.length > 0 ? `${mediaList.length} 个媒体文件` : '媒体预览' }}
       </h1>
     </header>
 
     <!-- 主内容区域 -->
     <main class="pb-6">
       <MediaGrid
-        v-if="mediaList.length > 0"
+        v-if="mediaList.length > 0 && !isClose"
         :images="mediaList"
         @select="viewer.open"
       />
@@ -48,7 +48,7 @@ import { MediaGrid, MediaViewer, EmptyState } from '@/components'
 import { useMediaList, useMediaViewer } from '@/composables'
 
 // 媒体列表状态
-const { mediaList } = useMediaList()
+const { mediaList, isClose } = useMediaList()
 
 // 媒体查看器
 const viewer = useMediaViewer(mediaList)
