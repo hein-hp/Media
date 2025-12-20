@@ -1,6 +1,7 @@
 package menu
 
 import (
+	"media-app/pkg/file"
 	"runtime"
 
 	"media-app/internal/app"
@@ -21,45 +22,49 @@ func Create(app *app.App) *menu.Menu {
 
 	fileMenu := appMenu.AddSubmenu("文件")
 	fileMenu.AddText("选择文件夹", keys.CmdOrCtrl("o"), func(_ *menu.CallbackData) {
-		filepath, err := wailsruntime.OpenDirectoryDialog(app.Context(), wailsruntime.OpenDialogOptions{})
-		if err != nil {
-			logger.L().Error("打开目录对话框失败", zap.Error(err))
-			return
-		}
-		if filepath == "" {
-			logger.L().Debug("用户取消选择目录")
-			return
-		}
-		app.MediaHandler.SetSelectedDir(filepath)
-		mediaInfos := app.MediaHandler.GetMediaFiles()
-		if len(mediaInfos) != 0 {
-			app.MediaHandler.SendMediaFiles(mediaInfos)
-		}
+		openDirectory(app)
 	})
 	fileMenu.AddSeparator()
-	fileMenu.AddText("关闭文件夹", &keys.Accelerator{Key: "o", Modifiers: []keys.Modifier{keys.ShiftKey, keys.CmdOrCtrlKey}},
-		func(_ *menu.CallbackData) {
-			app.MediaHandler.SendMediaFilesClose()
-		})
 
 	operMenu := appMenu.AddSubmenu("操作")
-	operMenu.AddText("预览媒体文件", &keys.Accelerator{},
+	operMenu.AddText("修复文件名", &keys.Accelerator{},
 		func(_ *menu.CallbackData) {
-			filepath, err := wailsruntime.OpenDirectoryDialog(app.Context(), wailsruntime.OpenDialogOptions{})
-			if err != nil {
-				logger.L().Error("打开目录对话框失败", zap.Error(err))
-				return
-			}
-			if filepath == "" {
-				logger.L().Debug("用户取消选择目录")
-				return
-			}
-			app.MediaHandler.SetSelectedDir(filepath)
-			mediaInfos := app.MediaHandler.GetMediaFiles()
-			if len(mediaInfos) != 0 {
-				app.MediaHandler.SendMediaFiles(mediaInfos)
-			}
+			app.MediaHandler.FixMediaFilename()
+		})
+	operMenu.AddText("修复文件名（批量）", &keys.Accelerator{},
+		func(_ *menu.CallbackData) {
+			app.MediaHandler.BatchFixMediaFilename()
+		})
+	operMenu.AddText("相似度分析", &keys.Accelerator{},
+		func(_ *menu.CallbackData) {
+			openDirectory(app)
 		})
 
 	return appMenu
+}
+
+func openDirectory(app *app.App) string {
+	filepath, err := wailsruntime.OpenDirectoryDialog(app.Context(), wailsruntime.OpenDialogOptions{})
+	if err != nil {
+		logger.Error("打开目录对话框失败", zap.Error(err))
+		return ""
+	}
+	if filepath == "" {
+		logger.Debug("用户取消选择目录")
+		return ""
+	}
+	app.MediaHandler.SetSelectedDir(filepath)
+	fileCount, err := file.CountFiles(filepath)
+	if err != nil {
+		logger.Error("读取文件失败", zap.Error(err))
+		return ""
+	}
+	if fileCount != 0 {
+		app.MediaHandler.SendMediaFiles(app.MediaHandler.GetMediaFiles(), fileCount, filepath)
+	}
+	return filepath
+}
+
+func Goto(app *app.App, route string) {
+	wailsruntime.EventsEmit(app.Context(), "router", route)
 }

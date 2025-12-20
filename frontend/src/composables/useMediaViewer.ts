@@ -1,5 +1,5 @@
-import { ref, computed, onMounted, onUnmounted, type Ref } from "vue";
-import type { MediaInfo } from "@/types";
+import {computed, onMounted, onUnmounted, ref, type Ref} from "vue";
+import type {MediaInfo} from "@/types";
 
 /**
  * 媒体查看器配置项

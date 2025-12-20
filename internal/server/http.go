@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,7 +39,7 @@ func (hs *HTTPServer) Start() {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", hs.port))
 	if err != nil {
-		logger.L().Error("HTTP server listen error", zap.Error(err))
+		logger.Error("HTTP server listen error", zap.Error(err))
 		return
 	}
 
@@ -50,11 +51,11 @@ func (hs *HTTPServer) Start() {
 	hs.httpServer = server
 	hs.mutex.Unlock()
 
-	logger.L().Info("HTTP server started", zap.Int("port", hs.port))
+	logger.Info("HTTP server started", zap.Int("port", hs.port))
 
 	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			logger.L().Error("HTTP server error", zap.Error(err))
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("HTTP server error", zap.Error(err))
 		}
 	}()
 }
@@ -65,9 +66,9 @@ func (hs *HTTPServer) Stop() {
 	defer hs.mutex.Unlock()
 
 	if hs.httpServer != nil {
-		logger.L().Info("HTTP server stopping...")
+		logger.Info("HTTP server stopping...")
 		if err := hs.httpServer.Close(); err != nil {
-			logger.L().Error("HTTP server stop error", zap.Error(err))
+			logger.Error("HTTP server stop error", zap.Error(err))
 		}
 		hs.httpServer = nil
 	}
@@ -88,12 +89,15 @@ func (hs *HTTPServer) fileHandler() http.Handler {
 			return
 		}
 
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate, proxy-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+
 		dir := hs.mediaHandler.GetSelectedDir()
 		if dir == "" {
 			http.Error(w, "未选择文件目录", http.StatusForbidden)
 			return
 		}
-
 		uri := strings.TrimPrefix(r.URL.Path, "/")
 		if uri == "" {
 			http.Error(w, "无效的文件路径", http.StatusBadRequest)

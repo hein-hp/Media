@@ -2,9 +2,6 @@ package main
 
 import (
 	"embed"
-	"log"
-	"os"
-
 	"media-app/internal/app"
 	"media-app/internal/menu"
 	"media-app/pkg/logger"
@@ -23,13 +20,12 @@ var assets embed.FS
 var icon []byte
 
 func main() {
-	home, err := os.UserHomeDir()
+	err := logger.Init(logger.DefaultConfig())
 	if err != nil {
-		log.Fatalf("获取用户主目录失败，%v", err)
+		panic("初始化日志失败: " + err.Error())
 	}
-	logger.InitWithFile(home)
 	defer logger.Sync()
-	logger.L().Info("应用启动中...")
+	logger.Info("应用启动中...")
 
 	app := app.New(8080)
 
@@ -61,6 +57,6 @@ func main() {
 	})
 
 	if err != nil {
-		logger.L().Fatal("应用运行失败", zap.Error(err))
+		logger.Fatal("应用运行失败", zap.Error(err))
 	}
 }

@@ -2,13 +2,16 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
-	"net/http"
+	"media-app/pkg/file"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"media-app/pkg/logger"
 
@@ -24,21 +27,14 @@ type MediaHandler struct {
 	port int
 }
 
-// MediaType represents the type of media
-type MediaType string
-
-const (
-	MediaTypeImage MediaType = "image"
-	MediaTypeVideo MediaType = "video"
-)
-
 // MediaInfo represents information about a media file
 type MediaInfo struct {
-	Path string    `json:"path"`
-	Name string    `json:"name"`
-	Size int64     `json:"size"`
-	Url  string    `json:"url"`
-	Type MediaType `json:"type"`
+	Path    string         `json:"path"`
+	Name    string         `json:"name"`
+	Size    int64          `json:"size"`
+	Url     string         `json:"url"`
+	Type    file.MediaType `json:"type"`
+	ModTime time.Time      `json:"modTime"`
 }
 
 // NewMediaHandler creates a new MediaHandler instance
@@ -63,15 +59,7 @@ func (mh *MediaHandler) SetSelectedDir(dir string) {
 	mh.mux.Lock()
 	defer mh.mux.Unlock()
 	mh.dir = dir
-	logger.L().Info("目录已选择", zap.String("dir", dir))
-}
-
-// CloseSelectedDir clears the selected directory
-func (mh *MediaHandler) CloseSelectedDir() {
-	mh.mux.Lock()
-	defer mh.mux.Unlock()
-	mh.dir = ""
-	logger.L().Info("目录已清理")
+	logger.Info("目录已选择", zap.String("dir", dir))
 }
 
 // GetMediaFiles scans the given directory and returns a list of media file paths
@@ -80,13 +68,13 @@ func (mh *MediaHandler) GetMediaFiles() []MediaInfo {
 
 	dirStat, err := os.Stat(mh.dir)
 	if err != nil || !dirStat.IsDir() {
-		logger.L().Warn("无效的目录", zap.String("dir", mh.dir), zap.Error(err))
+		logger.Error("无效的目录", zap.String("dir", mh.dir), zap.Error(err))
 		return medias
 	}
 
 	err = filepath.WalkDir(mh.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			logger.L().Warn("遍历文件失败", zap.String("path", path), zap.Error(err))
+			logger.Error("遍历文件失败", zap.String("path", path), zap.Error(err))
 			return nil
 		}
 		if d.IsDir() {
@@ -95,81 +83,160 @@ func (mh *MediaHandler) GetMediaFiles() []MediaInfo {
 
 		abs, err := filepath.Abs(path)
 		if err != nil {
-			logger.L().Warn("获取绝对路径失败", zap.String("path", path), zap.Error(err))
-			return nil
-		}
-		fileType, err := detectMediaType(abs)
-		if err != nil {
-			logger.L().Debug("识别媒体类型失败", zap.String("path", abs), zap.Error(err))
+			logger.Error("获取绝对路径失败", zap.String("path", path), zap.Error(err))
 			return nil
 		}
 
-		var mediaType MediaType
-		if strings.HasPrefix(fileType, "image/") {
-			mediaType = MediaTypeImage
-		} else if strings.HasPrefix(fileType, "video/") {
-			mediaType = MediaTypeVideo
-		} else {
-			// 不是图片或视频，跳过
-			return nil
-		}
-
-		fileinfo, err := d.Info()
+		fileInfo, err := d.Info()
 		if err != nil {
-			logger.L().Warn("获取文件信息失败", zap.String("path", abs), zap.Error(err))
+			logger.Error("获取文件信息失败", zap.String("path", abs), zap.Error(err))
 			return nil
 		}
 		relPath, err := filepath.Rel(mh.dir, abs)
 		if err != nil {
-			logger.L().Warn("获取相对路径失败", zap.String("path", abs), zap.Error(err))
+			logger.Error("获取相对路径失败", zap.String("path", abs), zap.Error(err))
+			return nil
+		}
+
+		mediaType := file.GetFileTypeByExt(relPath)
+		if mediaType != file.MediaTypeImage && mediaType != file.MediaTypeVideo {
+			logger.Error("非图片视频", zap.String("abs", abs), zap.Any("mediaType", mediaType))
 			return nil
 		}
 		urlPath := strings.ReplaceAll(relPath, string(filepath.Separator), "/")
 		medias = append(medias, MediaInfo{
-			Path: abs,
-			Name: d.Name(),
-			Size: fileinfo.Size(),
-			Url:  fmt.Sprintf("http://localhost:%d/%s", mh.port, urlPath),
-			Type: mediaType,
+			Path:    abs,
+			Name:    d.Name(),
+			Size:    fileInfo.Size(),
+			Url:     fmt.Sprintf("http://localhost:%d/%s", mh.port, urlPath),
+			Type:    file.GetFileTypeByExt(relPath),
+			ModTime: fileInfo.ModTime(),
 		})
 		return nil
 	})
 
 	if err != nil {
-		logger.L().Error("遍历目录失败", zap.String("dir", mh.dir), zap.Error(err))
+		logger.Error("遍历目录失败", zap.String("dir", mh.dir), zap.Error(err))
 	}
 
-	logger.L().Info("扫描完成", zap.Int("count", len(medias)), zap.String("dir", mh.dir))
+	logger.Info("扫描完成", zap.Int("count", len(medias)), zap.String("dir", mh.dir))
+
+	// 最新的文件在前面
+	sort.Slice(medias, func(i, j int) bool {
+		return medias[i].ModTime.After(medias[j].ModTime)
+	})
 	return medias
 }
 
 // SendMediaFiles sends the media files to the frontend
-func (mh *MediaHandler) SendMediaFiles(mediaInfos []MediaInfo) {
+func (mh *MediaHandler) SendMediaFiles(mediaInfos []MediaInfo, fileCount int, filepath string) {
 	runtime.EventsEmit(mh.ctx, "media-list", mediaInfos)
-	logger.L().Debug("已发送媒体列表到前端", zap.Int("count", len(mediaInfos)))
+	runtime.EventsEmit(mh.ctx, "media-count", fileCount)
+	runtime.EventsEmit(mh.ctx, "selected-dir", filepath)
+	logger.Debug("已发送媒体列表到前端", zap.Int("size", len(mediaInfos)), zap.Int("count", fileCount))
 }
 
-// SendMediaFilesClose sends a media close event to the frontend
-func (mh *MediaHandler) SendMediaFilesClose() {
-	mh.CloseSelectedDir()
-	runtime.EventsEmit(mh.ctx, "media-close")
-	logger.L().Debug("已发送关闭文件事件到前端")
+// FixMediaFilename fix the media filename
+func (mh *MediaHandler) FixMediaFilename() {
+	selected := mh.GetSelectedDir()
+	err := fixMediaFilename(selected)
+	if err != nil {
+		logger.Error("修复资源名称失败", zap.Error(err))
+		return
+	}
+	files, err := file.CountFiles(selected)
+	if err != nil {
+		logger.Error("读取文件数量失败", zap.Error(err))
+		files = -1
+	}
+	mh.SendMediaFiles(mh.GetMediaFiles(), files, selected)
 }
 
-// detectMediaType returns the MIME type of the given file
-func detectMediaType(filepath string) (string, error) {
-	file, err := os.Open(filepath)
+// BatchFixMediaFilename batch fix the media filename
+func (mh *MediaHandler) BatchFixMediaFilename() {
+	dir := mh.GetSelectedDir()
+	dirStat, err := os.Stat(dir)
 	if err != nil {
-		return "", err
+		logger.Error("目录不存在或无法访问", zap.String("dir", dir), zap.Error(err))
+		return
 	}
-	defer file.Close()
+	if !dirStat.IsDir() {
+		logger.Error("指定路径不是文件夹", zap.String("dir", dir))
+		return
+	}
 
-	buffer := make([]byte, 512)
-	n, err := file.Read(buffer)
+	// 读取目录下所有文件，收集文件信息
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return "", err
+		logger.Error("读取目录失败", zap.String("dir", dir), zap.Error(err))
+		return
 	}
 
-	contentType := http.DetectContentType(buffer[:n])
-	return contentType, nil
+	wg := &sync.WaitGroup{}
+	wg.Add(len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		go func() {
+			err := fixMediaFilename(filepath.Join(dir, entry.Name()))
+			if err != nil {
+				logger.Error("修复文件名错误", zap.String("dir", dir), zap.Error(err))
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+}
+
+// fixMediaFilename 修复dir文件夹下的所有文件名称
+func fixMediaFilename(dir string) error {
+	dirStat, err := os.Stat(dir)
+	if err != nil {
+		return fmt.Errorf("目录不存在或无法访问：%w", err)
+	}
+	if !dirStat.IsDir() {
+		return errors.New("指定路径不是文件夹")
+	}
+
+	metas, err := file.GetFileMetas(dir)
+	if err != nil {
+		return err
+	}
+
+	// 修改时间逆序
+	sort.Slice(metas, func(i, j int) bool {
+		return metas[i].ModTime.After(metas[j].ModTime)
+	})
+
+	lastIndex, err := file.CountFiles(dir)
+	if err != nil {
+		return err
+	}
+	successCount := 0
+	for _, meta := range metas {
+		numStr := fmt.Sprintf("%05d", lastIndex)
+		newFileName := numStr + meta.Ext
+		newFullPath := filepath.Join(dir, newFileName)
+
+		if meta.FullPath == newFullPath {
+			successCount++
+		} else {
+			logger.Debug("重命名文件", zap.String("old", meta.FullPath), zap.String("new", newFullPath))
+			err := file.RenameFile(meta.FullPath, newFullPath, false, -1)
+			if err != nil {
+				return err
+			}
+			successCount++
+			logger.Info("文件重命名成功",
+				zap.String("oldName", meta.FileName), zap.String("newName", newFileName), zap.Time("modTime", meta.ModTime),
+			)
+		}
+		lastIndex--
+	}
+
+	logger.Info("批量重命名完成", zap.Int("成功数量", successCount), zap.String("目录", dir))
+	return nil
 }
