@@ -93,7 +93,7 @@ func GetFileMetas(dir string) ([]Meta, error) {
 
 		fileName := entry.Name()
 		// 过滤隐藏文件/系统无用文件
-		if strings.HasPrefix(fileName, ".") || filterFiles[fileName] {
+		if filterFiles[fileName] {
 			continue
 		}
 

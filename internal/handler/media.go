@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"media-app/pkg/file"
@@ -139,9 +138,9 @@ func (mh *MediaHandler) SendMediaFiles(mediaInfos []MediaInfo, fileCount int, fi
 // FixMediaFilename fix the media filename
 func (mh *MediaHandler) FixMediaFilename() {
 	selected := mh.GetSelectedDir()
-	err := fixMediaFilename(selected)
+	err := file.WithOrderly(selected, 4)
 	if err != nil {
-		logger.Error("修复资源名称失败", zap.Error(err))
+		logger.Error("重排序文件失败", zap.Error(err))
 		return
 	}
 	files, err := file.CountFiles(selected)
@@ -172,71 +171,38 @@ func (mh *MediaHandler) BatchFixMediaFilename() {
 		return
 	}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(len(entries))
+	// 过滤出目录
+	var dirs []os.DirEntry
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
+		if entry.IsDir() {
+			dirs = append(dirs, entry)
 		}
+	}
 
-		go func() {
-			err := fixMediaFilename(filepath.Join(dir, entry.Name()))
+	logger.Info("开始批量修复文件名", zap.Int("目录数量", len(dirs)))
+
+	sem := make(chan struct{}, 5)
+	wg := &sync.WaitGroup{}
+	wg.Add(len(dirs))
+
+	for _, entry := range dirs {
+		sem <- struct{}{}
+		go func(e os.DirEntry) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			sub := filepath.Join(dir, e.Name())
+			logger.Debug("处理子目录", zap.String("dir", sub))
+
+			err := file.WithOrderly(sub, 4)
 			if err != nil {
-				logger.Error("修复文件名错误", zap.String("dir", dir), zap.Error(err))
+				logger.Error("修复文件名错误", zap.String("dir", sub), zap.Error(err))
+			} else {
+				logger.Debug("子目录处理完成", zap.String("dir", sub))
 			}
-			wg.Done()
-		}()
+		}(entry)
 	}
 
 	wg.Wait()
-}
-
-// fixMediaFilename 修复dir文件夹下的所有文件名称
-func fixMediaFilename(dir string) error {
-	dirStat, err := os.Stat(dir)
-	if err != nil {
-		return fmt.Errorf("目录不存在或无法访问：%w", err)
-	}
-	if !dirStat.IsDir() {
-		return errors.New("指定路径不是文件夹")
-	}
-
-	metas, err := file.GetFileMetas(dir)
-	if err != nil {
-		return err
-	}
-
-	// 修改时间逆序
-	sort.Slice(metas, func(i, j int) bool {
-		return metas[i].ModTime.After(metas[j].ModTime)
-	})
-
-	lastIndex, err := file.CountFiles(dir)
-	if err != nil {
-		return err
-	}
-	successCount := 0
-	for _, meta := range metas {
-		numStr := fmt.Sprintf("%05d", lastIndex)
-		newFileName := numStr + meta.Ext
-		newFullPath := filepath.Join(dir, newFileName)
-
-		if meta.FullPath == newFullPath {
-			successCount++
-		} else {
-			logger.Debug("重命名文件", zap.String("old", meta.FullPath), zap.String("new", newFullPath))
-			err := file.RenameFile(meta.FullPath, newFullPath, false, -1)
-			if err != nil {
-				return err
-			}
-			successCount++
-			logger.Info("文件重命名成功",
-				zap.String("oldName", meta.FileName), zap.String("newName", newFileName), zap.Time("modTime", meta.ModTime),
-			)
-		}
-		lastIndex--
-	}
-
-	logger.Info("批量重命名完成", zap.Int("成功数量", successCount), zap.String("目录", dir))
-	return nil
+	logger.Info("批量修复文件名完成")
 }
