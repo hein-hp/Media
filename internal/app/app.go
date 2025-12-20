@@ -2,9 +2,12 @@ package app
 
 import (
 	"context"
+	"media-app/pkg/logger"
 
 	"media-app/internal/handler"
 	"media-app/internal/server"
+
+	"go.uber.org/zap"
 )
 
 // App struct represents the main application
@@ -37,3 +40,8 @@ func (a *App) Context() context.Context {
 	return a.ctx
 }
 
+// RemoveMedia 删除媒体资源
+func (a *App) RemoveMedia(mediaInfo handler.MediaInfo) {
+	logger.Info("删除文件", zap.Any("mediaInfo", mediaInfo))
+	a.MediaHandler.RemoveMedia(mediaInfo)
+}

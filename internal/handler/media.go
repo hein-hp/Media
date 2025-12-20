@@ -206,3 +206,29 @@ func (mh *MediaHandler) BatchFixMediaFilename() {
 	wg.Wait()
 	logger.Info("批量修复文件名完成")
 }
+
+// RemoveMedia 删除媒体资源
+func (mh *MediaHandler) RemoveMedia(mediaInfo MediaInfo) {
+	filePath := mediaInfo.Path
+	_, err := os.Stat(filePath)
+	if err != nil {
+		logger.Error("源文件不存在或无法访问", zap.String("filePath", filePath), zap.Error(err))
+		return
+	}
+	srcDir := filepath.Dir(filePath)
+
+	deleteDir := filepath.Join(srcDir, ".delete")
+	if err := os.MkdirAll(deleteDir, 0755); err != nil {
+		logger.Error("创建 .delete 目录失败", zap.String("filePath", filePath), zap.Error(err))
+		return
+	}
+
+	// 提取源文件名，拼接目标文件路径
+	fileName := filepath.Base(filePath)
+	targetFilePath := filepath.Join(deleteDir, fileName)
+
+	err = file.RenameFile(filePath, targetFilePath, true, 100)
+	if err != nil {
+		logger.Error("移动到 .delete 目录失败", zap.String("filePath", filePath), zap.Error(err))
+	}
+}

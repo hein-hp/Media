@@ -5,3 +5,7 @@
 export function Context() {
   return window['go']['app']['App']['Context']();
 }
+
+export function RemoveMedia(arg1) {
+  return window['go']['app']['App']['RemoveMedia'](arg1);
+}

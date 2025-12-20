@@ -1,5 +1,7 @@
 import {computed, onMounted, onUnmounted, ref, type Ref} from "vue";
 import type {MediaInfo} from "@/types";
+import {RemoveMedia} from "../../wailsjs/go/app/App";
+import {handler} from "../../wailsjs/go/models"
 
 /**
  * 媒体查看器配置项
@@ -84,6 +86,43 @@ export function useMediaViewer(
     resetTransform();
   };
 
+  const remove = async () => {
+    const list = mediaList.value;
+    const curIdx = currentIndex.value;
+
+    // 列表为空或索引越界则直接返回
+    if (list.length === 0 || curIdx < 0 || curIdx >= list.length) {
+      return;
+    }
+    const mediaInfo = mediaList.value[curIdx];
+    const media = handler.MediaInfo.createFrom({
+        path: mediaInfo.path,
+        name: mediaInfo.name,
+        size: mediaInfo.size,
+        url: mediaInfo.url,
+        type: mediaInfo.type
+      }
+    )
+    await RemoveMedia(media)
+
+    // 移除当前索引对应的媒体项
+    mediaList.value.splice(curIdx, 1);
+
+    const newListLength = mediaList.value.length;
+    if (newListLength === 0) {
+      currentIndex.value = 0;
+      close();
+      return;
+    }
+
+    // 若移除的是最后一个元素，索引回退一位
+    if (curIdx >= newListLength) {
+      currentIndex.value = newListLength - 1;
+    }
+
+    resetTransform();
+  }
+
   const next = () => {
     if (hasNext.value) {
       currentIndex.value++;
@@ -160,6 +199,10 @@ export function useMediaViewer(
       case "0": // 数字0重置缩放
         resetZoom();
         break;
+      case "d": // d 删除
+      case "D":
+        remove()
+        break
       default:
         break;
     }
