@@ -13,6 +13,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Similar.vue'),
     meta: {title: '相似图片分析'}
   },
+  {
+    path: '/classify',
+    name: 'Classify',
+    component: () => import('../views/Classify.vue'),
+    meta: {title: '快捷分类'}
+  },
 ]
 
 const router = createRouter({

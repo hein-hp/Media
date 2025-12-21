@@ -29,6 +29,7 @@ func Create(app *app.App) *menu.Menu {
 	operMenu.AddText("修复文件名（批量）", &keys.Accelerator{}, func(_ *menu.CallbackData) { app.MediaHandler.BatchFixMediaFilename() })
 	operMenu.AddSeparator()
 	operMenu.AddText("查找相同图片", keys.CmdOrCtrl("f"), func(_ *menu.CallbackData) { findSimilarImages(app) })
+	operMenu.AddText("快捷分类", keys.CmdOrCtrl("k"), func(_ *menu.CallbackData) { openClassify(app) })
 
 	return appMenu
 }
@@ -45,6 +46,7 @@ func openDirectory(app *app.App) string {
 	}
 	app.MediaHandler.SetSelectedDir(filepath)
 	app.SimilarHandler.SetSelectedDir(filepath)
+	app.ShortcutHandler.SetSelectedDir(filepath)
 	fileCount, err := file.CountFiles(filepath)
 	if err != nil {
 		logger.Error("读取文件失败", zap.Error(err))
@@ -74,4 +76,9 @@ func findSimilarImages(app *app.App) {
 
 func Goto(app *app.App, route string) {
 	wailsruntime.EventsEmit(app.Context(), "router", route)
+}
+
+// openClassify 打开快捷分类页面
+func openClassify(app *app.App) {
+	Goto(app, "/classify")
 }

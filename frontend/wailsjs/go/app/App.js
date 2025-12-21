@@ -6,10 +6,42 @@ export function Context() {
   return window['go']['app']['App']['Context']();
 }
 
+export function GetClassifyDir() {
+  return window['go']['app']['App']['GetClassifyDir']();
+}
+
+export function GetShortcuts() {
+  return window['go']['app']['App']['GetShortcuts']();
+}
+
+export function GetUndoCount() {
+  return window['go']['app']['App']['GetUndoCount']();
+}
+
+export function MoveByShortcut(arg1, arg2) {
+  return window['go']['app']['App']['MoveByShortcut'](arg1, arg2);
+}
+
 export function RemoveMedia(arg1) {
   return window['go']['app']['App']['RemoveMedia'](arg1);
 }
 
 export function RemoveSimilarImage(arg1) {
   return window['go']['app']['App']['RemoveSimilarImage'](arg1);
+}
+
+export function SaveShortcuts(arg1) {
+  return window['go']['app']['App']['SaveShortcuts'](arg1);
+}
+
+export function SelectShortcutTargetDir() {
+  return window['go']['app']['App']['SelectShortcutTargetDir']();
+}
+
+export function SetClassifyDir(arg1) {
+  return window['go']['app']['App']['SetClassifyDir'](arg1);
+}
+
+export function UndoMove() {
+  return window['go']['app']['App']['UndoMove']();
 }
