@@ -7,6 +7,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/Home.vue'),
     meta: {title: '媒体预览'}
   },
+  {
+    path: '/similar',
+    name: 'Similar',
+    component: () => import('../views/Similar.vue'),
+    meta: {title: '相似图片分析'}
+  },
 ]
 
 const router = createRouter({

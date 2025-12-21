@@ -9,3 +9,7 @@ export function Context() {
 export function RemoveMedia(arg1) {
   return window['go']['app']['App']['RemoveMedia'](arg1);
 }
+
+export function RemoveSimilarImage(arg1) {
+  return window['go']['app']['App']['RemoveSimilarImage'](arg1);
+}

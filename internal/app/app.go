@@ -22,7 +22,7 @@ type App struct {
 // New creates a new App application struct
 func New(filePort int) *App {
 	mediaHandler := handler.NewMediaHandler(filePort)
-	similarHandler := handler.NewSimilarHandler()
+	similarHandler := handler.NewSimilarHandler(filePort)
 	httpServer := server.NewHttpServer(filePort, mediaHandler)
 	return &App{
 		HttpServer:     httpServer,
@@ -45,7 +45,13 @@ func (a *App) Context() context.Context {
 }
 
 // RemoveMedia 删除媒体资源
-func (a *App) RemoveMedia(mediaInfo handler.MediaInfo) {
-	logger.Info("删除文件", zap.Any("mediaInfo", mediaInfo))
-	a.MediaHandler.RemoveMedia(mediaInfo)
+func (a *App) RemoveMedia(path string) error {
+	logger.Info("删除文件", zap.String("path", path))
+	return a.MediaHandler.RemoveMedia(path)
+}
+
+// RemoveSimilarImage 删除相似图片
+func (a *App) RemoveSimilarImage(path string) error {
+	logger.Info("删除相似图片", zap.String("path", path))
+	return a.SimilarHandler.RemoveSimilarImage(path)
 }

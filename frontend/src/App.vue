@@ -7,6 +7,22 @@
 </template>
 
 <script lang="ts" setup>
+import {onMounted, onUnmounted} from 'vue'
+import {useRouter} from 'vue-router'
+import {EventsOff, EventsOn} from '../wailsjs/runtime'
+
+const router = useRouter()
+
+onMounted(() => {
+  // 监听后端发送的路由跳转事件
+  EventsOn('router', (route: string) => {
+    router.push(route)
+  })
+})
+
+onUnmounted(() => {
+  EventsOff('router')
+})
 </script>
 
 <style scoped>

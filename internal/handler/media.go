@@ -77,7 +77,10 @@ func (mh *MediaHandler) GetMediaFiles() []MediaInfo {
 			return nil
 		}
 		if d.IsDir() {
-			return nil
+			if path == mh.dir {
+				return nil
+			}
+			return filepath.SkipDir
 		}
 
 		abs, err := filepath.Abs(path)
@@ -103,11 +106,13 @@ func (mh *MediaHandler) GetMediaFiles() []MediaInfo {
 			return nil
 		}
 		urlPath := strings.ReplaceAll(relPath, string(filepath.Separator), "/")
+		// 添加修改时间戳防止浏览器缓存
+		modTimeUnix := fileInfo.ModTime().Unix()
 		medias = append(medias, MediaInfo{
 			Path:    abs,
 			Name:    d.Name(),
 			Size:    fileInfo.Size(),
-			Url:     fmt.Sprintf("http://localhost:%d/%s", mh.port, urlPath),
+			Url:     fmt.Sprintf("http://localhost:%d/%s?t=%d", mh.port, urlPath, modTimeUnix),
 			Type:    file.GetFileTypeByExt(relPath),
 			ModTime: fileInfo.ModTime(),
 		})
@@ -208,19 +213,18 @@ func (mh *MediaHandler) BatchFixMediaFilename() {
 }
 
 // RemoveMedia 删除媒体资源
-func (mh *MediaHandler) RemoveMedia(mediaInfo MediaInfo) {
-	filePath := mediaInfo.Path
+func (mh *MediaHandler) RemoveMedia(filePath string) error {
 	_, err := os.Stat(filePath)
 	if err != nil {
 		logger.Error("源文件不存在或无法访问", zap.String("filePath", filePath), zap.Error(err))
-		return
+		return err
 	}
 	srcDir := filepath.Dir(filePath)
 
 	deleteDir := filepath.Join(srcDir, ".delete")
 	if err := os.MkdirAll(deleteDir, 0755); err != nil {
 		logger.Error("创建 .delete 目录失败", zap.String("filePath", filePath), zap.Error(err))
-		return
+		return err
 	}
 
 	// 提取源文件名，拼接目标文件路径
@@ -231,4 +235,5 @@ func (mh *MediaHandler) RemoveMedia(mediaInfo MediaInfo) {
 	if err != nil {
 		logger.Error("移动到 .delete 目录失败", zap.String("filePath", filePath), zap.Error(err))
 	}
+	return nil
 }

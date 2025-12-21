@@ -33,3 +33,29 @@ export function isVideo(media: MediaInfo): boolean {
 export function isImage(media: MediaInfo): boolean {
   return media.type === 'image'
 }
+
+/**
+ * 相似图片信息
+ */
+export interface SimilarImage {
+  /** 文件绝对路径 */
+  path: string
+  /** 文件名 */
+  name: string
+  /** HTTP 访问 URL */
+  url: string
+  /** 文件大小（字节） */
+  size: number
+  /** 修改时间 */
+  modTime: string
+}
+
+/**
+ * 相似图片组
+ */
+export interface SimilarityResult {
+  /** 组 ID */
+  groupId: number
+  /** 该组中的相似图片 */
+  images: SimilarImage[]
+}

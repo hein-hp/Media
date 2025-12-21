@@ -1,7 +1,6 @@
 import {computed, onMounted, onUnmounted, ref, type Ref} from "vue";
 import type {MediaInfo} from "@/types";
 import {RemoveMedia} from "../../wailsjs/go/app/App";
-import {handler} from "../../wailsjs/go/models"
 
 /**
  * 媒体查看器配置项
@@ -94,16 +93,7 @@ export function useMediaViewer(
     if (list.length === 0 || curIdx < 0 || curIdx >= list.length) {
       return;
     }
-    const mediaInfo = mediaList.value[curIdx];
-    const media = handler.MediaInfo.createFrom({
-        path: mediaInfo.path,
-        name: mediaInfo.name,
-        size: mediaInfo.size,
-        url: mediaInfo.url,
-        type: mediaInfo.type
-      }
-    )
-    await RemoveMedia(media)
+    await RemoveMedia(mediaList.value[curIdx].path)
 
     // 移除当前索引对应的媒体项
     mediaList.value.splice(curIdx, 1);
