@@ -21,24 +21,13 @@ func Create(app *app.App) *menu.Menu {
 	}
 
 	fileMenu := appMenu.AddSubmenu("文件")
-	fileMenu.AddText("选择文件夹", keys.CmdOrCtrl("o"), func(_ *menu.CallbackData) {
-		openDirectory(app)
-	})
+	fileMenu.AddText("选择文件夹", keys.CmdOrCtrl("o"), func(_ *menu.CallbackData) { openDirectory(app) })
 	fileMenu.AddSeparator()
 
 	operMenu := appMenu.AddSubmenu("操作")
-	operMenu.AddText("修复文件名", &keys.Accelerator{},
-		func(_ *menu.CallbackData) {
-			app.MediaHandler.FixMediaFilename()
-		})
-	operMenu.AddText("修复文件名（批量）", &keys.Accelerator{},
-		func(_ *menu.CallbackData) {
-			app.MediaHandler.BatchFixMediaFilename()
-		})
-	operMenu.AddText("相似度分析", &keys.Accelerator{},
-		func(_ *menu.CallbackData) {
-			openDirectory(app)
-		})
+	operMenu.AddText("修复文件名", &keys.Accelerator{}, func(_ *menu.CallbackData) { app.MediaHandler.FixMediaFilename() })
+	operMenu.AddText("修复文件名（批量）", &keys.Accelerator{}, func(_ *menu.CallbackData) { app.MediaHandler.BatchFixMediaFilename() })
+	operMenu.AddText("相似度分析", &keys.Accelerator{}, func(_ *menu.CallbackData) { app.SimilarHandler.CalcSimilarity() })
 
 	return appMenu
 }
@@ -54,6 +43,7 @@ func openDirectory(app *app.App) string {
 		return ""
 	}
 	app.MediaHandler.SetSelectedDir(filepath)
+	app.SimilarHandler.SetSelectedDir(filepath)
 	fileCount, err := file.CountFiles(filepath)
 	if err != nil {
 		logger.Error("读取文件失败", zap.Error(err))

@@ -175,7 +175,7 @@ export function useMediaViewer(
     }
   };
 
-  const handleKeydown = (e: KeyboardEvent) => {
+  const handleKeydown = async (e: KeyboardEvent) => {
     // 查看器未打开或禁用键盘时不处理
     if (!isOpen.value || !enableKeyboard) return;
 
@@ -184,9 +184,13 @@ export function useMediaViewer(
         close();
         break;
       case "ArrowRight": // 右箭头下一张
+      case "d":
+      case "D":
         next();
         break;
       case "ArrowLeft": // 左箭头上一张
+      case "a":
+      case "A":
         prev();
         break;
       case "+": // 加号放大
@@ -199,9 +203,9 @@ export function useMediaViewer(
       case "0": // 数字0重置缩放
         resetZoom();
         break;
-      case "d": // d 删除
-      case "D":
-        remove()
+      case "w": // w 删除
+      case "W":
+        await remove()
         break
       default:
         break;

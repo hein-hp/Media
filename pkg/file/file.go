@@ -56,6 +56,7 @@ var filterFiles = map[string]bool{
 	".DS_Store": true,
 	".Trash":    true,
 	"Thumbs.db": true,
+	".deleted":  true,
 }
 
 // Meta 文件元数据
@@ -115,6 +116,28 @@ func GetFileMetas(dir string) ([]Meta, error) {
 	}
 
 	return metaList, nil
+}
+
+// GetFileMeta 获取path文件路径的元数据信息
+func GetFileMeta(path string) (*Meta, error) {
+	fileStat, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("获取文件信息失败：%s %w", path, err)
+	}
+	if fileStat.IsDir() {
+		return nil, errors.New("指定路径是文件夹")
+	}
+
+	// 提取文件后缀
+	ext := filepath.Ext(path)
+	base := filepath.Base(path)
+	// 存储文件信息
+	return &Meta{
+		FullPath: path,
+		FileName: base,
+		Ext:      ext,
+		ModTime:  fileStat.ModTime(),
+	}, nil
 }
 
 // CountFiles 对dir文件夹下的文件计数，不递归

@@ -14,17 +14,20 @@ import (
 type App struct {
 	ctx context.Context
 
-	MediaHandler *handler.MediaHandler
-	HTTPServer   *server.HTTPServer
+	MediaHandler   *handler.MediaHandler
+	SimilarHandler *handler.SimilarHandler
+	HttpServer     *server.HttpServer
 }
 
 // New creates a new App application struct
 func New(filePort int) *App {
 	mediaHandler := handler.NewMediaHandler(filePort)
-	httpServer := server.NewHTTPServer(filePort, mediaHandler)
+	similarHandler := handler.NewSimilarHandler()
+	httpServer := server.NewHttpServer(filePort, mediaHandler)
 	return &App{
-		HTTPServer:   httpServer,
-		MediaHandler: mediaHandler,
+		HttpServer:     httpServer,
+		MediaHandler:   mediaHandler,
+		SimilarHandler: similarHandler,
 	}
 }
 
@@ -32,7 +35,8 @@ func New(filePort int) *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.MediaHandler.SetContext(ctx)
-	a.HTTPServer.Start()
+	a.SimilarHandler.SetContext(ctx)
+	a.HttpServer.Start()
 }
 
 // Context returns the application context

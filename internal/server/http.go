@@ -15,24 +15,24 @@ import (
 	"go.uber.org/zap"
 )
 
-// HTTPServer represents the HTTP file server
-type HTTPServer struct {
+// HttpServer represents the HTTP file server
+type HttpServer struct {
 	port         int
 	httpServer   *http.Server
 	mutex        sync.Mutex
 	mediaHandler *handler.MediaHandler
 }
 
-// NewHTTPServer creates a new HTTPServer instance
-func NewHTTPServer(port int, mediaHandler *handler.MediaHandler) *HTTPServer {
-	return &HTTPServer{
+// NewHttpServer creates a new HttpServer instance
+func NewHttpServer(port int, mediaHandler *handler.MediaHandler) *HttpServer {
+	return &HttpServer{
 		port:         port,
 		mediaHandler: mediaHandler,
 	}
 }
 
 // Start starts the HTTP server
-func (hs *HTTPServer) Start() {
+func (hs *HttpServer) Start() {
 	hs.Stop()
 
 	fileHandler := hs.fileHandler()
@@ -61,7 +61,7 @@ func (hs *HTTPServer) Start() {
 }
 
 // Stop stops the HTTP server
-func (hs *HTTPServer) Stop() {
+func (hs *HttpServer) Stop() {
 	hs.mutex.Lock()
 	defer hs.mutex.Unlock()
 
@@ -75,11 +75,11 @@ func (hs *HTTPServer) Stop() {
 }
 
 // GetPort returns the HTTP server port
-func (hs *HTTPServer) GetPort() int {
+func (hs *HttpServer) GetPort() int {
 	return hs.port
 }
 
-func (hs *HTTPServer) fileHandler() http.Handler {
+func (hs *HttpServer) fileHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
